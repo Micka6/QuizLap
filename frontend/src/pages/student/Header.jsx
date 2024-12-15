@@ -1,0 +1,33 @@
+import React from "react";
+
+const Header = ({ currentPage }) => {
+  const userName = "Justine James Medina";
+
+  // Function to get initials from name
+  const getInitials = (name) => {
+    const nameParts = name.split(" ");
+    const firstNameInitial = nameParts[0]?.[0] || ""; // First letter of the first name
+    const lastNameInitial = nameParts[nameParts.length - 1]?.[0] || ""; // First letter of the last name
+    return (firstNameInitial + lastNameInitial).toUpperCase();
+  };
+
+  return (
+    <div className="flex justify-between items-center px-8 py-2 bg-white">
+      {/* Page Title */}
+      <h2 className="font-bold text-2xl text-secondary">{currentPage}</h2>
+
+      {/* User Profile */}
+      <div className="flex items-center space-x-3">
+        <div className="flex flex-col text-right">
+          <span className="font-semibold text-secondary">{userName}</span>
+          <span className="text-sm text-secondary">Student</span>
+        </div>
+        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white font-bold">
+          {getInitials(userName)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Header;
