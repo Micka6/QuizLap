@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useRef } from "react";
 import { AiOutlineDashboard, AiOutlineFileText } from "react-icons/ai";
 import { FiSettings, FiLogOut } from "react-icons/fi";
 import logo from "../../assets/quizlapWhite.png";
-import { useNavigate } from "react-router-dom";  // <-- Add this import
+import { useNavigate } from "react-router-dom";
+import { confirmDialog } from "primereact/confirmdialog";
+import { Toast } from "primereact/toast";
+import { ConfirmDialog } from "primereact/confirmdialog";
 
 const PAGES = {
   DASHBOARD: "Dashboard",
@@ -11,18 +14,39 @@ const PAGES = {
 };
 
 const Sidebar = ({ setCurrentPage, currentPage }) => {
+  const navigate = useNavigate();
+  const toast = useRef(null);
+
   const handleNavigationClick = (page) => {
     setCurrentPage(page);
   };
 
-  const navigate = useNavigate();  // Now you can use navigate
+  const acceptLogout = () => {
+    toast.current.show({ severity: "info", summary: "Logged Out", detail: "You have successfully logged out", life: 3000 });
+    navigate("/login");
+  };
+
+  const rejectLogout = () => {
+    toast.current.show({ severity: "warn", summary: "Cancelled", detail: "Logout cancelled", life: 3000 });
+  };
+
+  const confirmLogout = () => {
+    confirmDialog({
+      message: "Are you sure you want to log out?",
+      header: "Logout Confirmation",
+      icon: "pi pi-exclamation-triangle",
+      accept: acceptLogout,
+      reject: rejectLogout,
+      acceptClassName: "custom-accept-button custom-yes-button",
+    });
+  };
 
   return (
     <div className="w-1/5 h-full bg-indigo-950 p-5 shadow-md flex flex-col">
+      <Toast ref={toast} />
       <img className="w-full h-16" src={logo} alt="logo" />
       <div>
         <ul className="space-y-3 mt-9 mx-auto flex-1">
-          {/* Sidebar Items */}
           {Object.entries(PAGES).map(([key, page]) => (
             <li
               key={key}
@@ -39,8 +63,10 @@ const Sidebar = ({ setCurrentPage, currentPage }) => {
           ))}
         </ul>
       </div>
-      {/* Logout Button */}
-      <div className="flex justify-center items-center mt-auto cursor-pointer text-white hover:text-red-600 transition-all py-2" onClick={() => navigate("/login")}>
+      <div
+        className="flex justify-center items-center mt-auto cursor-pointer text-white hover:text-red-600 transition-all py-2"
+        onClick={confirmLogout}
+      >
         <FiLogOut className="mr-2" /> Log out
       </div>
     </div>

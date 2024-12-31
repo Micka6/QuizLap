@@ -1,0 +1,48 @@
+.p-dialog-header,
+.p-dialog-content,
+.p-dialog-footer {
+  padding: 1rem 1.5rem;
+}
+
+.p-button {
+  padding: 0.25rem 0.5rem;
+  margin: 0 4px;
+}
+
+.p-confirm-dialog-accept {
+  padding: 0.25rem 0.8rem;
+  margin: 0 4px;
+  background-color: var(--accent);
+}
+
+.p-confirm-dialog-reject {
+  padding: 0.25rem 0.5rem;
+  margin: 0 4px;
+  color: var(--black);
+}
+
+.p-confirm-dialog-icon {
+  margin-right: 1rem;
+}
+.p-toast-message {
+  margin-bottom: 1rem;
+}
+
+.p-toast-message-content {
+  padding: 1rem;
+}
+
+.p-toast-message-content > svg {
+  margin-right: 1rem;
+}
+
+.custom-accept-button {
+  color: white;
+  background-color: #00bcd4 !important; /* Example color */
+}
+
+.customdelete-yes-button{
+    color: white;
+    background-color: #dc2626 !important; /* Example color */
+  }
+  

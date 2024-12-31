@@ -1,17 +1,15 @@
 import React from "react";
+import globe from "../../assets/auth/signup.png";
 
-const Testimonial = ({ profileImage, name, tags, rating, feedback }) => {
+const Testimonial = () => {
   return (
-    <div className="text-center bg-gray-100 p-12 rounded-lg shadow-lg max-w-sm">
+    <div className="w-full h-full flex flex-col items-center text-center gap-3 mt-3  ">
+      <p className="text-4xl font-bold text-secondary mt-10">Challenge Yourself, <br/>Learn More</p>
       <img
-        src={profileImage}
-        alt={`${name}'s Profile`}
-        className="w-20 h-20 rounded-full mx-auto mb-4 shadow-md"
+        src={globe}
+        className="max-w-full max-h-[80%]"
       />
-      <h2 className="text-xl font-bold text-gray-800">{name}</h2>
-      <p className="text-sm text-gray-600">{tags}</p>
-      <div className="text-yellow-400 text-lg my-2">{rating}</div>
-      <p className="text-gray-700">{feedback}</p>
+      
     </div>
   );
 };

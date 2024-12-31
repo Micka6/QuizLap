@@ -1,8 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import api from "../../../api";
+import { Toast } from "primereact/toast"; // Import Toast component
 
 const Security = () => {
-    const [password, setPassword] = useState("");
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
+    const toast = useRef(null); // Reference for Toast component
 
     const validationRules = [
         { id: 1, test: (pwd) => pwd.length >= 8, message: "At least 8 characters long" },
@@ -11,104 +16,173 @@ const Security = () => {
         { id: 4, test: (pwd) => /\d/.test(pwd), message: "Includes at least one number" },
     ];
 
-    const isPasswordValid = validationRules.every((rule) => rule.test(password));
-    const doPasswordsMatch = confirmPassword && password === confirmPassword;
+    const isPasswordValid = validationRules.every((rule) => rule.test(newPassword));
+    const doPasswordsMatch = newPassword === confirmPassword;
 
-    const handlePasswordChange = () => {
-        if (isPasswordValid && doPasswordsMatch) {
-            alert("Password changed successfully.");
-            setPassword("");
+    const handlePasswordChange = async (e) => {
+        e.preventDefault();
+        setSuccessMessage("");
+    
+        if (!isPasswordValid) {
+            toast.current.show({
+                severity: "error",
+                summary: "Password Error",
+                detail: "New password does not meet all requirements.",
+                life: 3000,
+            });
+            return;
+        }
+    
+        if (!doPasswordsMatch) {
+            toast.current.show({
+                severity: "error",
+                summary: "Password Error",
+                detail: "New passwords do not match.",
+                life: 3000,
+            });
+            return;
+        }
+    
+        try {
+            const response = await api.put('/api/user/update-password/', {
+                current_password: currentPassword,
+                new_password: newPassword,
+                confirm_password: confirmPassword
+            });
+
+            setSuccessMessage("Password updated successfully!");
+            toast.current.show({
+                severity: "success",
+                summary: "Success",
+                detail: "Password updated successfully!",
+                life: 3000,
+            });
+
+            setCurrentPassword("");
+            setNewPassword("");
             setConfirmPassword("");
+        } catch (err) {
+            if (err.response && err.response.data) {
+                const errorData = err.response.data;
+                if (errorData.detail) {
+                    toast.current.show({
+                        severity: "error",
+                        summary: "Error",
+                        detail: errorData.detail,
+                        life: 3000,
+                    });
+                } else if (errorData.current_password) {
+                    toast.current.show({
+                        severity: "error",
+                        summary: "Error",
+                        detail: errorData.current_password[0],
+                        life: 3000,
+                    });
+                } else if (errorData.new_password) {
+                    toast.current.show({
+                        severity: "error",
+                        summary: "Error",
+                        detail: errorData.new_password[0],
+                        life: 3000,
+                    });
+                } else if (errorData.confirm_password) {
+                    toast.current.show({
+                        severity: "error",
+                        summary: "Error",
+                        detail: errorData.confirm_password[0],
+                        life: 3000,
+                    });
+                } else {
+                    toast.current.show({
+                        severity: "error",
+                        summary: "Error",
+                        detail: "An error occurred. Please try again.",
+                        life: 3000,
+                    });
+                }
+            } else {
+                toast.current.show({
+                    severity: "error",
+                    summary: "Connection Error",
+                    detail: "Unable to connect to the server.",
+                    life: 3000,
+                });
+            }
         }
     };
 
     return (
         <div className="w-full h-full flex flex-col gap-6 p-8 bg-white rounded-lg shadow-md">
+            <Toast ref={toast} /> {/* Toast component */}
+
             <h4 className="text-lg font-bold">Change Password</h4>
 
-            {/* Current Password */}
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col w-1/2">
-                    <label className="text-sm font-semibold text-secondary" htmlFor="current-password">
-                        Current Password
-                    </label>
+            <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                    <label htmlFor="current-password" className="font-semibold">Current Password</label>
                     <input
-                        className="w-full p-2 rounded border border-gray-300"
                         type="password"
                         id="current-password"
-                        placeholder="Enter your current password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full p-2 border rounded"
+                        required
                     />
                 </div>
-            </div>
 
-            {/* New Password and Confirmation */}
-            <div className="flex gap-4">
-                <div className="flex flex-col w-1/2">
-                    <label className="text-sm font-semibold text-secondary" htmlFor="new-password">
-                        New Password
-                    </label>
-                    <input
-                        className="w-full p-2 rounded border border-gray-300"
-                        type="password"
-                        id="new-password"
-                        placeholder="Enter your new password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
+                <div className="flex gap-4">
+                    <div className="flex-1">
+                        <label htmlFor="new-password" className="font-semibold">New Password</label>
+                        <input
+                            type="password"
+                            id="new-password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="w-full p-2 border rounded"
+                            required
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label htmlFor="confirm-password" className="font-semibold">Confirm Password</label>
+                        <input
+                            type="password"
+                            id="confirm-password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className={`w-full p-2 border rounded ${confirmPassword.length > 0 && (doPasswordsMatch ? "border-green-500" : "border-red-500")}`}
+                            required
+                        />
+                    </div>
                 </div>
-                <div className="flex flex-col w-1/2">
-                    <label className="text-sm font-semibold text-secondary" htmlFor="confirm-password">
-                        Confirm New Password
-                    </label>
-                    <input
-                        className="w-full p-2 rounded border border-gray-300"
-                        type="password"
-                        id="confirm-password"
-                        placeholder="Re-enter your new password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                </div>
-            </div>
 
-            {/* Validation Feedback */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-300">
-                <p className="text-sm font-semibold text-secondary">Your password must:</p>
-                <ul className="mt-2 space-y-1">
-                    {validationRules.map((rule) => (
-                        <li
-                            key={rule.id}
-                            className={`text-sm ${
-                                rule.test(password) ? "text-green-600" : "text-gray-400"
-                            }`}
-                        >
-                            {rule.message}
-                        </li>
-                    ))}
-                </ul>
-                {confirmPassword && (
-                    <p
-                        className={`mt-2 text-sm ${
-                            doPasswordsMatch ? "text-green-600" : "text-red-600"
-                        }`}
-                    >
-                        {doPasswordsMatch ? "Passwords match" : "Passwords do not match"}
-                    </p>
+                <div className="mt-4 text-sm text-gray-600">
+                    <p>Password must:</p>
+                    <ul>
+                        {validationRules.map((rule) => (
+                            <li key={rule.id} className={rule.test(newPassword) ? "text-green-500" : "text-gray-400"}>
+                                {rule.message}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                {/* Only show match/mismatch message when user starts typing in confirm password */}
+                {confirmPassword.length > 0 && (
+                    <div className={`text-sm mt-2 ${doPasswordsMatch ? "text-green-500" : "text-red-500"}`}>
+                        {doPasswordsMatch ? "Passwords match!" : "Passwords do not match!"}
+                    </div>
                 )}
-            </div>
-
-            {/* Change Password Button */}
-            <button
-                className={`self-end mt-4 py-2 px-4 rounded ${
-                    isPasswordValid && doPasswordsMatch
-                        ? "bg-blue-900 text-white hover:bg-blue-800"
-                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-                onClick={handlePasswordChange}
-                disabled={!isPasswordValid || !doPasswordsMatch}
-            >
-                Change Password
-            </button>
+                <button
+                    type="submit"
+                    disabled={!isPasswordValid || !doPasswordsMatch || !currentPassword}
+                    className={`py-2 px-4 rounded ${
+                        isPasswordValid && doPasswordsMatch && currentPassword
+                            ? "bg-blue-500 text-white hover:bg-blue-700"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
+                >
+                    Update Password
+                </button>
+            </form>
         </div>
     );
 };

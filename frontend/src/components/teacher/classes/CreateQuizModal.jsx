@@ -1,22 +1,28 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import api from '../../../api';
+import { Toast } from 'primereact/toast'; // Add this import
 
 const sampleDatabank = [
   { id: 4, content: 'What is the capital of Japan?', type: 'Multiple Choice', choices: ['Tokyo', 'Beijing', 'Seoul', 'Bangkok'], correctAnswer: 'Tokyo' },
   { id: 5, content: 'Is water wet?', type: 'True/False', correctAnswer: 'True' },
 ];
 
-const CreateQuizModal = ({ isOpen, onClose }) => {
+const CreateQuizModal = ({ selectedClass, isOpen, onClose }) => {
+  const [databankQuestions, setDatabankQuestions] = useState([]);
   const [quizName, setQuizName] = useState('');
-  const [startDate, setStartDate] = useState(''); // Start Date
-  const [startTime, setStartTime] = useState(''); // Start Time
-  const [endDate, setEndDate] = useState(''); // End Date
-  const [endTime, setEndTime] = useState(''); // End Time
+  const [startDate, setStartDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [instructions, setInstructions] = useState('');
   const [questions, setQuestions] = useState([]);
-  const [viewableAnswers, setViewableAnswers] = useState(false); // Checkbox for viewable answers
+  const [isViewable, setIsViewable] = useState(true);
   const [showDatabankModal, setShowDatabankModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(''); // State for search term
+  const [searchTerm, setSearchTerm] = useState('');
+  const [duration, setDuration] = useState('');
+  const [error, setError] = useState(null);
   const questionRefs = useRef([]);
+  const toast = useRef(null); // Add this line
 
   const handleAddQuestion = (type) => {
     const newQuestion = {
@@ -49,17 +55,86 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
     questionRefs.current[index]?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSaveQuiz = () => {
-    const newQuiz = {
-      quizName,
-      startDateTime: { date: startDate, time: startTime },
-      endDateTime: { date: endDate, time: endTime },
-      instructions,
-      viewableAnswers,
-      questions,
-    };
-    console.log('Quiz Saved:', newQuiz);
-    onClose(); // Close the modal after saving
+  useEffect(() => {
+    if (isOpen) {
+      setError(null);
+    }
+  }, [isOpen, selectedClass]);
+
+  const handleSaveQuiz = async () => {
+    try {
+      setError(null);
+  
+      // Create quiz
+      const quizData = {
+        quiz_name: quizName,
+        quiz_instruction: instructions,
+        total_items: questions.length,
+        duration: duration ? parseInt(duration) * 60 : 0,
+        start_date: `${startDate}T${startTime}:00Z`,
+        end_date: `${endDate}T${endTime}:00Z`,
+        class_code: selectedClass.class_code,
+        is_viewable: isViewable,
+      };
+  
+      const response = await api.post(`/api/classcode/${selectedClass.class_code}/quizzes/`, quizData);
+  
+      if (response.status === 201) {
+        console.log('Quiz created successfully:', response.data);
+  
+        // Save questions
+        await Promise.all(
+          questions.map((question) =>
+            createQuestion(response.data.id, question)
+          )
+        );
+        
+        // Show success toast
+        toast.current.show({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Quiz created successfully!',
+          life: 3000
+        });
+        
+        // Delay closing the modal
+        setTimeout(() => {
+          onClose(window.location.reload());
+        }, 1000); // 1 second delay
+      }
+
+    } catch (error) {
+      console.error('Error creating quiz:', error);
+      setError('An error occurred while creating the quiz. Please try again.');
+      
+      // Show error toast
+      toast.current.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to create quiz. Please try again.',
+        life: 3000
+      });
+    }
+  };
+
+  const createQuestion = async (quizId, question) => {
+    try {
+      const questionData = {
+        quiz: quizId,
+        quiz_question: question.content,
+        quiz_choices: question.type === 'Multiple Choice' ? question.choices : null,
+        quiz_answer: question.correctAnswer,
+      };
+
+      const response = await api.post(`/api/classcode/${selectedClass.class_code}/quizzes/${quizId}/questions/`, questionData);
+
+      if (response.status === 201) {
+        console.log('Question created successfully:', response.data);
+      }
+    } catch (error) {
+      console.error('Error creating question:', error);
+      // Handle error
+    }
   };
 
   const handleCancel = () => {
@@ -70,16 +145,17 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
     setEndDate('');
     setEndTime('');
     setInstructions('');
-    setViewableAnswers(false);
+    setIsViewable(false);
     setQuestions([]);
     onClose();
   };
 
-  const filteredDatabank = sampleDatabank.filter((question) =>
-    question.content.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredDatabank = databankQuestions.filter((question) =>
+    question.quiz_question.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleUseDatabank = () => {
+  
+  const handleUseDatabank = async () => {
+    await fetchDatabankQuestions();
     setShowDatabankModal(true);
   };
 
@@ -89,8 +165,20 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const fetchDatabankQuestions = async () => {
+    try {
+      const response = await api.get('/api/questionbank/');
+      if (response.status === 200) {
+        setDatabankQuestions(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching question bank:', error);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <Toast ref={toast} /> {/* Add this line */}
       <div className="bg-white w-full max-w-4xl rounded-lg shadow-md p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-semibold">Create a quiz</h1>
@@ -102,112 +190,113 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-  <div className="flex flex-col space-y-4">
-  <div className="flex space-x-4 items-center">
-    {/* Quiz Name Input */}
-    <div className="flex-1 flex items-center space-x-2">
-      <label className="text-sm font-medium w-36">Name:</label>
-      <input
-        type="text"
-        className="w-full border border-gray-300 rounded-md p-2 text-sm"
-        placeholder="Enter Quiz Name"
-        value={quizName}
-        onChange={(e) => setQuizName(e.target.value)}
-      />
-    </div>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
 
-    {/* Timer Input */}
-    <div className="flex-1 flex items-center space-x-2">
-      <label className="text-sm font-medium w-36">Timer (mins):</label>
-      <input
-        type="number"
-        className="w-full border border-gray-300 rounded-md p-2 text-sm"
-        placeholder="Enter quiz timer"
-        min="1"
-        onKeyPress={(e) => {
-          if (!/[0-9]/.test(e.key)) {
-            e.preventDefault(); // Prevent any non-numeric input
-          }
-        }}
-      />
-    </div>
-  </div>
+        <div className="flex flex-col space-y-4">
+          <div className="flex space-x-4 items-center">
+            <div className="flex-1 flex items-center space-x-2">
+              <label className="text-sm font-medium w-36">Name:</label>
+              <input
+                type="text"
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                placeholder="Enter Quiz Name"
+                value={quizName}
+                onChange={(e) => setQuizName(e.target.value)}
+              />
+            </div>
 
-  {/* Start Date and Time Inputs */}
-  <div className="flex space-x-4 items-center">
-    <div className="flex-1 flex items-center space-x-2">
-      <label className="text-sm font-medium w-36">Start Date:</label>
-      <input
-        type="date"
-        className="w-full border border-gray-300 rounded-md p-2 text-sm"
-        value={startDate}
-        onChange={(e) => setStartDate(e.target.value)}
-      />
-    </div>
-    <div className="flex-1 flex items-center space-x-2">
-      <label className="text-sm font-medium w-36">Opens at:</label>
-      <input
-        type="time"
-        className="w-full border border-gray-300 rounded-md p-2 text-sm"
-        value={startTime}
-        onChange={(e) => setStartTime(e.target.value)}
-      />
-    </div>
-  </div>
+            <div className="flex-1 flex items-center space-x-2">
+              <label className="text-sm font-medium w-36">Timer (mins):</label>
+              <input
+                type="number"
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                placeholder="Enter quiz timer"
+                min="1"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                onKeyPress={(e) => {
+                  if (!/[0-9]/.test(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+              />
+            </div>
+          </div>
 
-  {/* End Date and Time Inputs */}
-  <div className="flex space-x-4 items-center mt-4">
-    <div className="flex-1 flex items-center space-x-2">
-      <label className="text-sm font-medium w-36">End Date:</label>
-      <input
-        type="date"
-        className="w-full border border-gray-300 rounded-md p-2 text-sm"
-        value={endDate}
-        onChange={(e) => setEndDate(e.target.value)}
-      />
-    </div>
-    <div className="flex-1 flex items-center space-x-2">
-      <label className="text-sm font-medium w-36">Closes at:</label>
-      <input
-        type="time"
-        className="w-full border border-gray-300 rounded-md p-2 text-sm"
-        value={endTime}
-        onChange={(e) => setEndTime(e.target.value)}
-      />
-    </div>
-  </div>
+          <div className="flex space-x-4 items-center">
+            <div className="flex-1 flex items-center space-x-2">
+              <label className="text-sm font-medium w-36">Start Date:</label>
+              <input
+                type="date"
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="flex-1 flex items-center space-x-2">
+              <label className="text-sm font-medium w-36">Opens at:</label>
+              <input
+                type="time"
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
+            </div>
+          </div>
 
-  <div className="flex flex-col space-y-4 mt-4">
-    <div className="flex items-center space-x-2">
-      <input
-        type="text"
-        className="w-full border border-gray-300 rounded-md p-2 text-sm"
-        placeholder="Teacher Instructions"
-        value={instructions}
-        onChange={(e) => setInstructions(e.target.value)}
-      />
-    </div>
+          <div className="flex space-x-4 items-center mt-4">
+            <div className="flex-1 flex items-center space-x-2">
+              <label className="text-sm font-medium w-36">End Date:</label>
+              <input
+                type="date"
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+            <div className="flex-1 flex items-center space-x-2">
+              <label className="text-sm font-medium w-36">Closes at:</label>
+              <input
+                type="time"
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+            </div>
+          </div>
 
-    {/* Checkbox for viewable answers */}
-    <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id="viewableAnswers"
-        checked={viewableAnswers}
-        onChange={(e) => setViewableAnswers(e.target.checked)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="viewableAnswers" className="text-sm">
-        Make answers viewable to students after quiz submission
-      </label>
-    </div>
-  </div>
-</div>
+          <div className="flex flex-col space-y-4 mt-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                placeholder="Teacher Instructions"
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+              />
+            </div>
 
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isViewable"
+                checked={isViewable}
+                onChange={(e) => setIsViewable(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="isViewable" className="text-sm">
+                Make answers viewable to students after quiz submission
+              </label>
+            </div>
+          </div>
+        </div>
 
-        {/* Quiz Content */}
         <div className="flex w-full max-w-4xl mt-6">
-          {/* Questions Section */}
           <div className="flex-1 bg-white rounded-lg shadow-md p-6 space-y-4 overflow-y-auto max-h-[500px]">
             {questions.map((question, index) => (
               <div
@@ -268,7 +357,6 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
                     </select>
                   </div>
                 )}
-                {/* Short Answer Question Input */}
                 {question.type === 'Short Answer' && (
                   <div className="mt-2">
                     <input
@@ -290,7 +378,6 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
             ))}
           </div>
 
-          {/* Sidebar */}
           <div className="w-1/3 ml-4 bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-medium mb-4">Jump to Question</h2>
             <div className="space-y-2 max-h-[150px] overflow-y-auto">
@@ -332,17 +419,16 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
                 Use Databank
               </button>
               <button
-            onClick={handleSaveQuiz}
-            className="w-full bg-green-500 text-white rounded-md py-2 text-sm"
-          >
-            Save Quiz
-          </button>
+                onClick={handleSaveQuiz}
+                className="w-full bg-green-500 text-white rounded-md py-2 text-sm"
+              >
+                Save Quiz
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Databank Modal */}
       {showDatabankModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white w-full max-w-lg rounded-lg shadow-md p-6">
@@ -366,16 +452,33 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
 
             <div className="space-y-4 max-h-[60vh] overflow-y-auto">
               {filteredDatabank.map((question) => (
-                <div
-                  key={question.id}
-                  className="bg-gray-50 p-4 rounded-lg shadow-md"
-                >
+                <div key={question.id} className="bg-gray-50 p-4 rounded-lg shadow-md">
                   <p className="text-sm font-medium">
-                    {question.type}: {question.content}
+                    Question: {question.quiz_question}
                   </p>
+
+                  {question.quiz_choices && (
+                    <ul className="list-disc list-inside mt-2">
+                      {question.quiz_choices.map((choice, index) => (
+                        <li key={index} className="text-sm">
+                          {choice}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <p className="mt-2 text-sm font-medium text-green-600">
+                    Correct Answer: {question.quiz_answer}
+                  </p>
+
                   <button
                     onClick={() => {
-                      handleAddFromDatabank(question);
+                      handleAddFromDatabank({
+                        content: question.quiz_question,
+                        type: question.quiz_choices ? 'Multiple Choice' : 'Short Answer',
+                        choices: question.quiz_choices || [],
+                        correctAnswer: question.quiz_answer,
+                      });
                       setShowDatabankModal(false);
                     }}
                     className="mt-2 w-full bg-blue-500 text-white rounded-md py-2 text-sm"
@@ -393,3 +496,4 @@ const CreateQuizModal = ({ isOpen, onClose }) => {
 };
 
 export default CreateQuizModal;
+

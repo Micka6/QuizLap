@@ -1,27 +1,44 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
+import api from '../../../api';
 
 // Helper function to generate a random class code
-const generateClassCode = () => {
-  return Math.floor(10000 + Math.random() * 90000).toString(); // Generates a random 5-digit code
-};
+const generateClassCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-const CreateClassModal = ({ onCreate, onClose }) => {
+const CreateClassModal = ({ fetchClasses, onClose }) => {
   const [subjectCode, setSubjectCode] = useState('');
   const [subjectName, setSubjectName] = useState('');
-  const [classCode] = useState(generateClassCode()); // No need for setClassCode
+  const [classCode] = useState(generateClassCode()); // Fixed class code
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreateClass = () => {
-    if (subjectCode && subjectName) {
-      const newClass = {
-        name: subjectName,
-        subjectCode: subjectCode,
-        studentCount: 0, // Initial student count is 0
-        classCode: classCode
-      };
-      onCreate(newClass); // Pass the new class object to the parent function
-      onClose(); // Close the modal after creating the class
-    } else {
-      alert("Please fill in all fields.");
+  const handleCreateClassCode = async (e) => {
+    e.preventDefault();
+
+    if (!subjectCode || !subjectName) {
+      alert('Please fill in all fields.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await api.post('/api/classcode/', {
+        class_code: classCode,
+        subject_code: subjectCode,
+        subject_name: subjectName,
+      });
+
+      if (response.status === 201) {
+        alert('Classroom created successfully!');
+        fetchClasses(); // Refresh class list
+        onClose();
+      } else {
+        alert('Failed to create class.');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -31,9 +48,10 @@ const CreateClassModal = ({ onCreate, onClose }) => {
         <h2 className="text-2xl font-semibold text-center mb-4">Create a Class</h2>
         <p className="text-center mb-6">Fill out the form below to create a new class</p>
 
-        {/* Subject Code */}
         <div className="flex items-center mb-4">
-          <label className="bg-indigo-900 px-4 py-3 rounded-l-lg text-sm text-white w-1/3">Subject Code</label>
+          <label className="bg-indigo-900 px-4 py-3 rounded-l-lg text-sm text-white w-1/3">
+            Subject Code
+          </label>
           <input
             type="text"
             value={subjectCode}
@@ -43,9 +61,10 @@ const CreateClassModal = ({ onCreate, onClose }) => {
           />
         </div>
 
-        {/* Subject Name */}
         <div className="flex items-center mb-4">
-          <label className="bg-indigo-900 px-4 py-3 rounded-l-lg text-sm text-white w-1/3">Subject Name</label>
+          <label className="bg-indigo-900 px-4 py-3 rounded-l-lg text-sm text-white w-1/3">
+            Subject Name
+          </label>
           <input
             type="text"
             value={subjectName}
@@ -55,23 +74,32 @@ const CreateClassModal = ({ onCreate, onClose }) => {
           />
         </div>
 
-        {/* Class Code */}
-        <div className="flex items-center mb-6">
-          <label className="bg-indigo-900 px-4 py-2 rounded-l-lg text-white w-1/3">Class Code</label>
+        <div className="flex items-center mb-4">
+          <label className="bg-indigo-900 px-4 py-3 rounded-l-lg text-sm text-white w-1/3">
+            Class Code
+          </label>
           <input
             type="text"
             value={classCode}
-            readOnly
-            className="border border-gray-300 p-2 flex-1 rounded-r-lg bg-gray-100"
+            disabled
+            className="border border-gray-300 p-2 flex-1 rounded-r-lg"
           />
         </div>
 
-        <div className="flex justify-center space-x-4">
-          <button onClick={handleCreateClass} className="px-4 py-2 bg-indigo-900 text-white rounded-full">
-            Create Class
-          </button>
-          <button onClick={onClose} className="px-4 py-2 bg-red-500 text-white rounded-full">
+        <div className="flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-300 rounded-lg shadow-md hover:bg-gray-400 mr-2"
+            disabled={isSubmitting}
+          >
             Cancel
+          </button>
+          <button
+            onClick={handleCreateClassCode}
+            className="px-4 py-2 bg-blue-800 text-white rounded-lg shadow-md hover:bg-blue-700"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Creating...' : 'Create Class'}
           </button>
         </div>
       </div>

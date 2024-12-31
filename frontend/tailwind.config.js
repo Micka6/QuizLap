@@ -10,6 +10,7 @@ export default {
         primary: "#efefef",
         secondary: "#2b2d47",
         accent: "#dbdcbe",
+        logsign: "#eff6ff"
       },
       screens: {
         sm: "768px", // Define the `max-width: 768px` breakpoint as `sm`.
